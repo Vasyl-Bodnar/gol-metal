@@ -2,8 +2,11 @@ import AppKit
 import Foundation
 import Metal
 import MetalKit
-import SwiftUI
 
+// import SwiftUI
+
+// NOTE: Temporary just to play with fire, not effective, crashes on large grids
+// An change in structure is preffered
 class Window: NSWindow {
     var rend: Renderer?
 
@@ -41,7 +44,7 @@ class Window: NSWindow {
         relative[0].round(.toNearestOrEven)
         relative[1].round(.toNearestOrEven)
 
-        ren.batchChanges.append(Int(relative[0]) * sideSize + Int(relative[1]))
+        //ren.batchChanges.append(Int(relative[0]) * sideSize + Int(relative[1]))
     }
 }
 
@@ -68,7 +71,7 @@ class Renderer: NSObject, MTKViewDelegate {
     let indexType: MTLIndexType
     let indexCount: Int
 
-    var batchChanges: [Int]
+    //var batchChanges: [Int]
 
     init(view: MTKView, dev: MTLDevice) {
         guard let lib = try? dev.makeDefaultLibrary(bundle: Bundle.module) else {
@@ -79,7 +82,7 @@ class Renderer: NSObject, MTKViewDelegate {
         compPipe = try! dev.makeComputePipelineState(function: game_kern)
 
         threadsPerTG = MTLSize(width: 128, height: 1, depth: 1)
-        TGCount = MTLSize(width: 2, height: 1, depth: 1)
+        TGCount = MTLSize(width: 8192, height: 1, depth: 1)
         elemCount = TGCount.width * threadsPerTG.width
 
         rowColSize = Int(sqrt(Double(elemCount)))
@@ -97,15 +100,15 @@ class Renderer: NSObject, MTKViewDelegate {
         let input = inputBuf.contents().assumingMemoryBound(to: Bool.self)
         let gridSize = gridSizeBuf.contents().assumingMemoryBound(to: UInt.self)
 
-        //for i in 0..<elemCount / 2 {
-        //input[i] = Bool.random()
-        //}
+        for i in 0..<elemCount {
+            input[i] = Bool.random()
+        }
         input[elemCount / 2] = true
         input[elemCount / 2 + 1] = true
         input[elemCount / 2 + 2] = true
         gridSize[0] = UInt(rowColSize)
 
-        batchChanges = []
+        //batchChanges = []
         var vertices: [Float] = []
         var indeces: [UInt32] = []
         for i in 0..<rowColSize {
@@ -197,15 +200,15 @@ class Renderer: NSObject, MTKViewDelegate {
         commBuf.present(view.currentDrawable!)
         commBuf.commit()
 
-        commBuf.waitUntilCompleted()
+        //commBuf.waitUntilCompleted()
         swap(&inputBuf, &outputBuf)
-        if batchChanges.count > 0 {
-            let input = inputBuf.contents().assumingMemoryBound(to: Bool.self)
-            for i in batchChanges {
-                input[i] = true
-            }
-            batchChanges = []
-        }
+        //if batchChanges.count > 0 {
+        //let input = inputBuf.contents().assumingMemoryBound(to: Bool.self)
+        //for i in batchChanges {
+        //input[i] = true
+        //}
+        //batchChanges = []
+        //}
     }
 }
 
@@ -216,7 +219,7 @@ let view = MTKView(frame: rect, device: dev)
 let rend = Renderer(view: view, dev: dev)
 view.delegate = rend
 
-let window = Window(
+let window = NSWindow(
     contentRect: rect,
     styleMask: NSWindow.StyleMask(
         arrayLiteral: NSWindow.StyleMask.closable, NSWindow.StyleMask.titled,
@@ -226,6 +229,6 @@ window.center()
 window.title = "Gol"
 window.makeKeyAndOrderFront(nil)
 window.contentView = view
-window.rend = rend
+//window.rend = rend
 
 _ = NSApplicationMain(CommandLine.argc, CommandLine.unsafeArgv)
